@@ -25,9 +25,7 @@ async function run(): Promise<void> {
       labelsStrategy: core.getInput('labelsStrategy') as labelStrategies,
       owner,
       repo,
-      pullRequestNumber: Number(
-        core.getInput('pullRequestNumber', {required: true})
-      ),
+      pullRequestNumber: core.getInput('pullRequestNumber', {required: true}),
       sha: core.getInput('sha', {required: true}),
       strategy: core.getInput('strategy', {required: true}) as Strategy,
       token: core.getInput('token', {required: true}),
