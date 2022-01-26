@@ -18,7 +18,7 @@ export interface Inputs {
   labelsStrategy: labelStrategies
   repo: string
   owner: string
-  pullRequestNumber: number
+  pullRequestNumber: string
   sha: string
   strategy: Strategy
   token: string
@@ -137,12 +137,15 @@ export class Merger {
 
     try {
       await this.retry.exec(
-        async (count): Promise<void> => {
+        async (count): Promise<void> => {          
           try {
+            const prNumberArray = this.cfg.pullRequestNumber.split(",");
+            for(let index = 0; index < prNumberArray.length;index++;){
+              const pullNumber = Number(prNumberArray[index].trim());
             const {data: pr} = await client.pulls.get({
               owner,
               repo,
-              pull_number: this.cfg.pullRequestNumber
+              pull_number: pullNumber
             })
 
             if (this.cfg.labels.length) {
@@ -214,6 +217,7 @@ export class Merger {
               core.debug(`All ${totalStatus} status success`)
               core.debug(`Merge PR ${pr.number}`)
             }
+          }
           } catch (err) {
             core.debug(`failed retry count:${count} with error ${inspect(err)}`)
             throw err
