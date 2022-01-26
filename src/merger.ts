@@ -134,90 +134,89 @@ export class Merger {
   async merge(): Promise<void> {
     const client = github.getOctokit(this.cfg.token)
     const {owner, repo} = this.cfg
-
+    const prNumberArray = this.cfg.pullRequestNumber.split(",");
     try {
       await this.retry.exec(
         async (count): Promise<void> => {          
-          try {
-            const prNumberArray = this.cfg.pullRequestNumber.split(",");
+          try {            
             for(let index = 0; index < prNumberArray.length;index++;){
               const pullNumber = Number(prNumberArray[index].trim());
-            const {data: pr} = await client.pulls.get({
-              owner,
-              repo,
-              pull_number: pullNumber
-            })
-
-            if (this.cfg.labels.length) {
-              const labelResult = this.isLabelsValid(
-                pr,
-                this.cfg.labels,
-                this.cfg.labelsStrategy,
-                'labels'
-              )
-              if (labelResult.failed) {
-                throw new Error(`Checked labels failed: ${labelResult.message}`)
-              }
-
-              core.debug(
-                `Checked labels and passed with message:${labelResult.message} with ${this.cfg.labelsStrategy}`
-              )
-              core.info(
-                `Checked labels and passed with labels:${inspect(
-                  this.cfg.labels
-                )}`
-              )
-            }
-
-            if (this.cfg.ignoreLabels.length) {
-              const ignoreLabelResult = this.isLabelsValid(
-                pr,
-                this.cfg.ignoreLabels,
-                this.cfg.ignoreLabelsStrategy,
-                'ignoreLabels'
-              )
-              if (ignoreLabelResult.failed) {
-                throw new Error(
-                  `Checked ignore labels failed: ${ignoreLabelResult.message}`
-                )
-              }
-
-              core.debug(
-                `Checked ignore labels and passed with message:${ignoreLabelResult.message} with ${this.cfg.ignoreLabelsStrategy} strategy`
-              )
-              core.info(
-                `Checked ignore labels and passed with ignoreLabels:${inspect(
-                  this.cfg.ignoreLabels
-                )}`
-              )
-            }
-
-            if (this.cfg.checkStatus) {
-              const {data: checks} = await client.checks.listForRef({
-                owner: this.cfg.owner,
-                repo: this.cfg.repo,
-                ref: this.cfg.sha
+              const {data: pr} = await client.pulls.get({
+                owner,
+                repo,
+                pull_number: pullNumber
               })
 
-              const totalStatus = checks.total_count
-              const totalSuccessStatuses = checks.check_runs.filter(
-                check =>
-                  check.conclusion === 'success' ||
-                  check.conclusion === 'skipped'
-              ).length
+              if (this.cfg.labels.length) {
+                const labelResult = this.isLabelsValid(
+                  pr,
+                  this.cfg.labels,
+                  this.cfg.labelsStrategy,
+                  'labels'
+                )
+                if (labelResult.failed) {
+                  throw new Error(`Checked labels failed: ${labelResult.message}`)
+                }
 
-              if (totalStatus - 1 !== totalSuccessStatuses) {
-                throw new Error(
-                  `Not all status success, ${totalSuccessStatuses} out of ${
-                    totalStatus - 1
-                  } (ignored this check) success`
+                core.debug(
+                  `Checked labels and passed with message:${labelResult.message} with ${this.cfg.labelsStrategy}`
+                )
+                core.info(
+                  `Checked labels and passed with labels:${inspect(
+                    this.cfg.labels
+                  )}`
                 )
               }
 
-              core.debug(`All ${totalStatus} status success`)
-              core.debug(`Merge PR ${pr.number}`)
+              if (this.cfg.ignoreLabels.length) {
+                const ignoreLabelResult = this.isLabelsValid(
+                  pr,
+                  this.cfg.ignoreLabels,
+                  this.cfg.ignoreLabelsStrategy,
+                  'ignoreLabels'
+                )
+                if (ignoreLabelResult.failed) {
+                  throw new Error(
+                    `Checked ignore labels failed: ${ignoreLabelResult.message}`
+                  )
+                }
+
+                core.debug(
+                  `Checked ignore labels and passed with message:${ignoreLabelResult.message} with ${this.cfg.ignoreLabelsStrategy} strategy`
+                )
+                core.info(
+                  `Checked ignore labels and passed with ignoreLabels:${inspect(
+                    this.cfg.ignoreLabels
+                  )}`
+                )
+              }
+
+              if (this.cfg.checkStatus) {
+                const {data: checks} = await client.checks.listForRef({
+                  owner: this.cfg.owner,
+                  repo: this.cfg.repo,
+                  ref: this.cfg.sha
+                })
+
+                const totalStatus = checks.total_count
+                const totalSuccessStatuses = checks.check_runs.filter(
+                  check =>
+                    check.conclusion === 'success' ||
+                    check.conclusion === 'skipped'
+                ).length
+
+                if (totalStatus - 1 !== totalSuccessStatuses) {
+                  throw new Error(
+                    `Not all status success, ${totalSuccessStatuses} out of ${
+                      totalStatus - 1
+                    } (ignored this check) success`
+                  )
+                }
+
+                core.debug(`All ${totalStatus} status success`)
+                core.debug(`Merge PR ${pr.number}`)
+              }
             }
-          }
           } catch (err) {
             core.debug(`failed retry count:${count} with error ${inspect(err)}`)
             throw err
@@ -226,25 +225,31 @@ export class Merger {
       )
 
       if (this.cfg.comment) {
-        const {data: resp} = await client.issues.createComment({
-          owner: this.cfg.owner,
-          repo: this.cfg.repo,
-          issue_number: this.cfg.pullRequestNumber,
-          body: this.cfg.comment
-        })
+        for(let index = 0; index < prNumberArray.length;index++;){
+          const pullNumber = Number(prNumberArray[index].trim());
+          const {data: resp} = await client.issues.createComment({
+            owner: this.cfg.owner,
+            repo: this.cfg.repo,
+            issue_number: pullNumber,
+            body: this.cfg.comment
+          })
 
-        core.debug(`Post comment ${inspect(this.cfg.comment)}`)
-        core.setOutput(`commentID`, resp.id)
+          core.debug(`Post comment ${inspect(this.cfg.comment)}`)
+          core.setOutput(`commentID`, resp.id)
+        }
       }
 
       if (!this.cfg.dryRun) {
-        await client.pulls.merge({
-          owner,
-          repo,
-          pull_number: this.cfg.pullRequestNumber,
-          merge_method: this.cfg.strategy
-        })
-        core.setOutput('merged', true)
+        for(let index = 0; index < prNumberArray.length;index++;){
+          const pullNumber = Number(prNumberArray[index].trim());
+          await client.pulls.merge({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            merge_method: this.cfg.strategy
+          });
+          core.setOutput('merged', true);
+        }
       } else {
         core.info(`dry run merge action`)
         core.setOutput('merged', false)
