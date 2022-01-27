@@ -1,6 +1,6 @@
-name: 'auto-pull-request-merge'
-description: 'Auto PR Merge'
-author: 'KeisukeYamashita'
+name: 'auto-multiple-pull-request-merge'
+description: 'Auto Multiple PR Merge'
+author: 'cyberdantes'
 inputs:
   checkStatus: 
     required: false
@@ -44,7 +44,7 @@ inputs:
     default: ${{ github.repository }}
   pullRequestNumber:
     required: false
-    description: 'Number of the pull request'
+    description: 'Numbers of the pulls requests separated by comma'
     default: ${{ github.event.pull_request.number }}
   sha:
     required: false
